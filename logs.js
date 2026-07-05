@@ -1,39 +1,14 @@
-// logs.js
-renderSidebar('logs');
+// routes/logs.js
+const express = require('express');
+const db = require('./db');
+const { requireAuth, requireRole } = require('./authMiddleware');
 
-const currentUser = Auth.getUser();
-if (currentUser?.role !== 'admin') {
-  document.querySelector('.main').innerHTML = `
-    <div class="empty-state" style="margin-top:60px">Accès réservé aux administrateurs.</div>`;
-} else {
-  loadLogs();
-}
+const router = express.Router();
+router.use(requireAuth);
 
-async function loadLogs() {
-  const tbody = document.getElementById('logsBody');
-  try {
-    const logs = await apiFetch('/logs');
-    if (logs.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Aucune action enregistrée.</div></td></tr>`;
-      return;
-    }
-    tbody.innerHTML = logs.map(l => `
-      <tr>
-        <td>${formatDate(l.createdAt)}</td>
-        <td>${escapeHtml(l.userName)}</td>
-        <td><strong>${l.action}</strong></td>
-        <td>${escapeHtml(l.target)}</td>
-        <td>${escapeHtml(l.details || '')}</td>
-      </tr>
-    `).join('');
-  } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Erreur de chargement.</div></td></tr>`;
-    showToast(err.message, 'error');
-  }
-}
+router.get('/', requireRole('admin'), (req, res) => {
+  const logs = db.all('logs').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  res.json(logs);
+});
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str ?? '';
-  return div.innerHTML;
-}
+module.exports = router;

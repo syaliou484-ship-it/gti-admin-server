@@ -1,31 +1,41 @@
-// dashboard.js
-renderSidebar('dashboard');
+// routes/dashboard.js
+const express = require('express');
+const db = require('./db');
+const { requireAuth } = require('./authMiddleware');
 
-(async function loadDashboard() {
-  try {
-    const stats = await apiFetch('/dashboard/stats');
+const router = express.Router();
+router.use(requireAuth);
 
-    const cards = document.querySelectorAll('#statsGrid .stat-value');
-    cards[0].textContent = stats.totals.products;
-    cards[1].textContent = stats.totals.orders;
-    cards[2].textContent = stats.totals.pendingOrders;
-    cards[3].textContent = stats.totals.users;
+router.get('/stats', (req, res) => {
+  const products = db.all('products');
+  const orders = db.all('orders');
+  const users = db.all('users');
 
-    const activityCanvas = document.getElementById('activityChart');
-    drawBarChart(
-      activityCanvas,
-      stats.activity7d.map(d => d.date.slice(5)),
-      stats.activity7d.map(d => d.count)
-    );
+  const revenueByStatus = orders.reduce((acc, o) => {
+    acc[o.status] = (acc[o.status] || 0) + Number(o.total || 0);
+    return acc;
+  }, {});
 
-    const donutCanvas = document.getElementById('statusDonut');
-    const rev = stats.revenueByStatus || {};
-    drawDonut(donutCanvas, [
-      { label: 'En attente', value: rev.en_attente || 0, color: '#F0A202' },
-      { label: 'Validée', value: rev.validee || 0, color: '#1B4A82' },
-      { label: 'Livrée', value: rev.livree || 0, color: '#3C7A4E' },
-    ]);
-  } catch (err) {
-    showToast(err.message, 'error');
+  // Activité des 7 derniers jours (commandes créées par jour)
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const count = orders.filter((o) => (o.createdAt || '').slice(0, 10) === key).length;
+    days.push({ date: key, count });
   }
-})();
+
+  res.json({
+    totals: {
+      products: products.length,
+      orders: orders.length,
+      users: users.length,
+      pendingOrders: orders.filter((o) => o.status === 'en_attente').length,
+    },
+    revenueByStatus,
+    activity7d: days,
+  });
+});
+
+module.exports = router;

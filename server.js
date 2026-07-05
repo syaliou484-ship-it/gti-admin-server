@@ -7,13 +7,13 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
-const authRoutes = require('./routes/auth');
-const productRoutes = require('./routes/products');
-const categoryRoutes = require('./routes/categories');
-const orderRoutes = require('./routes/orders');
-const userRoutes = require('./routes/users');
-const dashboardRoutes = require('./routes/dashboard');
-const logRoutes = require('./routes/logs');
+const authRoutes = require('./auth');
+const productRoutes = require('./products');
+const categoryRoutes = require('./categories');
+const orderRoutes = require('./orders');
+const userRoutes = require('./users');
+const dashboardRoutes = require('./dashboard');
+const logRoutes = require('./logs');
 
 const app = express();
 

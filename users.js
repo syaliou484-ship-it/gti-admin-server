@@ -1,9 +1,9 @@
 // routes/users.js
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const db = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
-const { logAction } = require('../logger');
+const db = require('./db');
+const { requireAuth, requireRole } = require('./authMiddleware');
+const { logAction } = require('./logger');
 
 const router = express.Router();
 router.use(requireAuth);

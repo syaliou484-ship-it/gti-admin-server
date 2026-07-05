@@ -1,59 +1,35 @@
-// orders.js
-renderSidebar('orders');
+// routes/orders.js
+const express = require('express');
+const db = require('./db');
+const { requireAuth, requireRole } = require('./authMiddleware');
+const { logAction } = require('./logger');
 
-const user = Auth.getUser();
-const canChangeStatus = ['admin', 'employe'].includes(user?.role);
+const router = express.Router();
+router.use(requireAuth);
 
-const STATUS_OPTIONS = [
-  { value: 'en_attente', label: 'En attente' },
-  { value: 'validee', label: 'Validée' },
-  { value: 'livree', label: 'Livrée' },
-];
+const VALID_STATUSES = ['en_attente', 'validee', 'livree'];
 
-async function changeStatus(id, newStatus) {
-  try {
-    await apiFetch(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
-    showToast('Statut mis à jour.');
-    loadOrders();
-  } catch (err) {
-    showToast(err.message, 'error');
+router.get('/', (req, res) => {
+  res.json(db.all('orders'));
+});
+
+router.get('/:id', (req, res) => {
+  const order = db.getById('orders', req.params.id);
+  if (!order) return res.status(404).json({ error: 'Commande introuvable.' });
+  res.json(order);
+});
+
+router.patch('/:id/status', requireRole('admin', 'employe'), (req, res) => {
+  const { status } = req.body || {};
+  if (!VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ error: `Statut invalide. Valeurs autorisées: ${VALID_STATUSES.join(', ')}` });
   }
-}
+  const existing = db.getById('orders', req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Commande introuvable.' });
 
-async function loadOrders() {
-  const tbody = document.getElementById('ordersBody');
-  try {
-    const orders = await apiFetch('/orders');
-    if (orders.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">Aucune commande pour le moment.</div></td></tr>`;
-      return;
-    }
-    tbody.innerHTML = orders.map(o => `
-      <tr>
-        <td><strong>#${o.id}</strong></td>
-        <td>${escapeHtml(o.customerName || 'N/A')}</td>
-        <td>${formatFcfa(o.total)}</td>
-        <td><span class="badge badge-${o.status}">${orderStatusLabel(o.status)}</span></td>
-        <td>${formatDate(o.createdAt)}</td>
-        <td>
-          ${canChangeStatus ? `
-            <select onchange="changeStatus(${o.id}, this.value)" style="width:auto;padding:6px 8px;font-size:12px">
-              ${STATUS_OPTIONS.map(s => `<option value="${s.value}" ${s.value === o.status ? 'selected' : ''}>${s.label}</option>`).join('')}
-            </select>
-          ` : ''}
-        </td>
-      </tr>
-    `).join('');
-  } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">Erreur de chargement.</div></td></tr>`;
-    showToast(err.message, 'error');
-  }
-}
+  const updated = db.update('orders', req.params.id, { status });
+  logAction(req.user, 'UPDATE', `commande #${updated.id}`, `Statut → ${status}`);
+  res.json(updated);
+});
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str ?? '';
-  return div.innerHTML;
-}
-
-loadOrders();
+module.exports = router;
