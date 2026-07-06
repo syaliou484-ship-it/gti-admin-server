@@ -14,6 +14,7 @@ const orderRoutes = require('./orders');
 const userRoutes = require('./users');
 const dashboardRoutes = require('./dashboard');
 const logRoutes = require('./logs');
+const publicOrderRoutes = require('./publicOrders');
 
 const app = express();
 
@@ -28,6 +29,9 @@ app.use('/api/admin/orders', orderRoutes);
 app.use('/api/admin/users', userRoutes);
 app.use('/api/admin/dashboard', dashboardRoutes);
 app.use('/api/admin/logs', logRoutes);
+
+// Route publique (pas d'authentification) : formulaire de devis du site public
+app.use('/api/public', publicOrderRoutes);
 
 app.get('/api/admin/health', (req, res) => res.json({ status: 'ok' }));
 
